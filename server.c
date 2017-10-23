@@ -1,0 +1,130 @@
+#include "cipher.h"
+
+int des_port;
+char *host_name;
+
+
+struct client_info {
+	int csocket;
+	char *keyfile;
+};
+
+void *thread_handler(void *thread) {
+	int sshfd, count;
+	char buffer[BUFFER_SIZE];
+	char plaintext[BUFFER_SIZE], cipher[BUFFER_SIZE];
+	struct sockaddr_in ssh_addr;
+	struct hostent *host;
+	struct client_info *info = (struct client_info *)thread;
+	printf("in handler");
+
+	if ((sshfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+		fprintf(stderr, "Sshd socket error");
+		exit(-1);
+	}
+	//sshfd = info->csocket;
+	printf("sshfd %d %d %s", sshfd, des_port, host_name);
+	if ((host = gethostbyname(host_name)) == 0) {
+		fprintf(stderr, "Get hostbyname error");
+		exit(-1);
+	}
+	bzero(&ssh_addr, sizeof(ssh_addr));
+	ssh_addr.sin_family = AF_INET;
+	ssh_addr.sin_addr.s_addr = ((struct in_addr *)host->h_addr)->s_addr;
+	ssh_addr.sin_port = htons(des_port);
+
+	if (connect(sshfd, (struct sockaddr *)&ssh_addr, sizeof(ssh_addr)) < 0){
+		fprintf(stderr, "sshd connection falied");
+		exit(-1);
+	}
+	fcntl(STDIN_FILENO, F_SETFL, O_NONBLOCK);
+	fcntl(STDOUT_FILENO, F_SETFL, O_NONBLOCK);
+	int flag = fcntl(sshfd, F_GETFL);
+	if (fcntl(sshfd, F_SETFL, flag | O_NONBLOCK) < 0) {
+		fprintf(stderr, "fcntl error");
+	}
+
+	while (1) {
+		bzero(buffer, BUFFER_SIZE);
+		if((count = read(info->csocket, buffer, BUFFER_SIZE)) > 0) {
+			fprintf(stdout, "\nMessage received:");
+			decrypt(info->keyfile, buffer, plaintext);
+			fprintf(stdout, "%s\n", plaintext);
+			//write(STDOUT_FILENO, buffer, BUFFER_SIZE);
+
+
+			if ((count = write(sshfd, plaintext, strlen(plaintext)+1)) < 0) {
+				fprintf(stderr, "Ssh fd write error");
+				exit(-1);
+			}
+			fprintf(stderr, "Count: %d %d", count, strlen(plaintext));
+		}
+		fprintf(stderr, "Read from ssh");
+		sleep(1000);
+		bzero(buffer, BUFFER_SIZE);
+		if((count = read(sshfd, buffer, BUFFER_SIZE)) > 0) {
+			fprintf(stderr, "From ssh: %s", buffer);
+			encrypt(info->keyfile, buffer, cipher);
+			fprintf(stderr, "Cipher: %s", cipher);
+			if (write(info->csocket, cipher, BUFFER_SIZE) < 0) {
+				fprintf(stderr, "write to csocket error");
+				exit(-1);
+			}
+		}
+	}
+
+}
+
+void server(char* hostname, int dport, int lport, char *keyfile) {
+	struct sockaddr_in server, client;
+	int serverfd, csocket;
+	char buffer[BUFFER_SIZE];
+	int rc, on =1;
+	des_port = dport;
+	host_name = hostname;
+	serverfd = socket(AF_INET, SOCK_STREAM, 0);
+	if (serverfd == -1) {
+		fprintf(stderr, "Socket creation error");
+		return;
+	}
+
+	server.sin_family = AF_INET;
+	server.sin_addr.s_addr = INADDR_ANY;
+	server.sin_port = htons(lport);
+
+	if (bind(serverfd, (struct sockaddr *)&server, sizeof(server)) < 0) {
+		fprintf(stderr, "Binding to socket failed");
+		return;
+	}
+
+	listen(serverfd, 10);
+	int clen = sizeof(struct sockaddr_in);
+	while (1) {
+		csocket = accept(serverfd, (struct sockaddr *)&client, (socklen_t *)&clen);
+		printf("\nConnection accepted %d\n", csocket);
+		struct client_info *info = (struct client_info *)malloc(sizeof(struct client_info));
+		info->csocket = csocket;
+		info->keyfile = keyfile;
+
+		/*bzero(buffer, sizeof(buffer));
+		  if (read(info->csocket, buffer, BUFFER_SIZE) > 0) {
+		  fprintf(stdout, "\nMessage received:");
+		  fprintf(stdout, "%s", buffer);
+		  }
+
+		  if (write(info->csocket, buffer, strlen(buffer)) < 0) {
+		  fprintf(stderr, "Server write error");
+		  exit(-1);
+		  }*/
+		pthread_t cthread;
+
+		if (pthread_create(&cthread, NULL, thread_handler, (void *) info) < 0) {
+			fprintf(stderr, "Thread creation error");
+			return;
+		}
+
+	}
+	close(serverfd);
+
+}
+
