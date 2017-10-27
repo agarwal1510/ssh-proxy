@@ -1,4 +1,6 @@
 #include "cipher.h"
+#include <sys/select.h>
+#include <errno.h>
 
 int des_port;
 char *host_name;
@@ -10,20 +12,21 @@ struct client_info {
 };
 
 void *thread_handler(void *thread) {
-	int sshfd, count;
+	int sshfd, count, brecv = 0;
 	char buffer[BUFFER_SIZE];
 	char plaintext[BUFFER_SIZE], cipher[BUFFER_SIZE];
 	struct sockaddr_in ssh_addr;
 	struct hostent *host;
 	struct client_info *info = (struct client_info *)thread;
-	printf("in handler");
+	fd_set fdset;
+	struct timeval tv;
 
 	if ((sshfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
 		fprintf(stderr, "Sshd socket error");
 		exit(-1);
 	}
 	//sshfd = info->csocket;
-	printf("sshfd %d %d %s", sshfd, des_port, host_name);
+	//printf("sshfd %d %d %s", sshfd, des_port, host_name);
 	if ((host = gethostbyname(host_name)) == 0) {
 		fprintf(stderr, "Get hostbyname error");
 		exit(-1);
@@ -37,40 +40,97 @@ void *thread_handler(void *thread) {
 		fprintf(stderr, "sshd connection falied");
 		exit(-1);
 	}
-	fcntl(STDIN_FILENO, F_SETFL, O_NONBLOCK);
-	fcntl(STDOUT_FILENO, F_SETFL, O_NONBLOCK);
-	int flag = fcntl(sshfd, F_GETFL);
-	if (fcntl(sshfd, F_SETFL, flag | O_NONBLOCK) < 0) {
-		fprintf(stderr, "fcntl error");
-	}
+
+	/*FD_ZERO(&fdset);
+	  FD_SET(sshfd, &fdset);
+	  FD_SET(info->csocket, &fdset);
+	  tv.tv_sec = 10;
+	  tv.tv_usec = 0;
+	 */
+	//fcntl(STDIN_FILENO, F_SETFL, O_NONBLOCK);
+	//fcntl(STDOUT_FILENO, F_SETFL, O_NONBLOCK);
+	//int flag = fcntl(sshfd, F_GETFL);
+	//if (fcntl(sshfd, F_SETFL, flag | O_NONBLOCK) < 0) {
+	//	fprintf(stderr, "fcntl error");
+	//}
 
 	while (1) {
-		bzero(buffer, BUFFER_SIZE);
-		if((count = read(info->csocket, buffer, BUFFER_SIZE)) > 0) {
-			fprintf(stdout, "\nMessage received:");
-			decrypt(info->keyfile, buffer, plaintext);
-			fprintf(stdout, "%s\n", plaintext);
-			//write(STDOUT_FILENO, buffer, BUFFER_SIZE);
+		FD_ZERO(&fdset);
+		FD_SET(sshfd, &fdset);
+		FD_SET(info->csocket, &fdset);
+		tv.tv_sec = 10;
+		tv.tv_usec = 0;
+		brecv = 0;
+		//bzero(buffer, BUFFER_SIZE);
+		//fprintf(stderr, "Read from csocket");
+		//if((count = read(info->csocket, buffer, BUFFER_SIZE)) > 0) {
+		//	fprintf(stdout, "\nMessage received:");
+		//	decrypt(info->keyfile, buffer, plaintext);
+		//	fprintf(stdout, "%s\n", plaintext);
+		//write(STDOUT_FILENO, buffer, BUFFER_SIZE);
 
 
-			if ((count = write(sshfd, plaintext, strlen(plaintext)+1)) < 0) {
-				fprintf(stderr, "Ssh fd write error");
-				exit(-1);
-			}
-			fprintf(stderr, "Count: %d %d", count, strlen(plaintext));
-		}
-		fprintf(stderr, "Read from ssh");
-		sleep(1000);
+		//	if ((count = write(sshfd, plaintext, strlen(plaintext)+1)) < 0) {
+		//		fprintf(stderr, "Ssh fd write error");
+		//		exit(-1);
+		//		}
+		//	fprintf(stderr, "Count: %d %d", count, strlen(plaintext));
+		//}
+		//fprintf(stderr, "Read from ssh");
+		//fprintf(stderr, "select called again %d %d", sshfd, info->csocket);
+		int max = sshfd;
+		if (info->csocket > max) 
+			max = info->csocket;
 		bzero(buffer, BUFFER_SIZE);
-		if((count = read(sshfd, buffer, BUFFER_SIZE)) > 0) {
-			fprintf(stderr, "From ssh: %s", buffer);
-			encrypt(info->keyfile, buffer, cipher);
-			fprintf(stderr, "Cipher: %s", cipher);
-			if (write(info->csocket, cipher, BUFFER_SIZE) < 0) {
-				fprintf(stderr, "write to csocket error");
-				exit(-1);
+		count = select(max+1, &fdset, NULL, NULL, &tv);
+		if (count < 0) {
+			fprintf(stderr, "Select failed");
+			exit(-1);
+		} else if (count == 0) {
+			fprintf(stderr, "timeout");
+			exit(-1);
+		} else {
+			if (FD_ISSET(sshfd, &fdset)) {
+				bzero(buffer, BUFFER_SIZE);
+				brecv = read(sshfd, buffer, BUFFER_SIZE);
+				if (brecv > 0) {
+					//fprintf(stderr, "R: %d", brecv);
+					//encrypt(info->keyfile, buffer, cipher);
+					if (write(info->csocket, buffer, brecv) < 0) {
+						fprintf(stderr, "write to csocket error");
+						exit(-1);
+					}
+				} else if (brecv == -1) {
+					fprintf(stderr, "E: %s", strerror(errno));
+					exit(-1);
+				}
+
+			} else if (FD_ISSET(info->csocket, &fdset)) {
+				bzero(buffer, BUFFER_SIZE);
+				brecv = read(info->csocket, buffer, BUFFER_SIZE);
+				if (brecv > 0) {
+					//fprintf(stderr, "Size: %d", brecv);
+					//decrypt(info->keyfile, buffer, plaintext);
+					//fprintf(stderr, "S: %d", brecv);
+
+					if (write(sshfd, buffer, brecv) < 0) {
+						fprintf(stderr, "Ssh fd write error");
+						exit(-1);
+					}
+				}
+
 			}
+
 		}
+		//if((count = read(sshfd, buffer, BUFFER_SIZE)) > 0) {
+		//fprintf(stderr, "From ssh: %s", buffer);
+		//encrypt(info->keyfile, buffer, cipher);
+		//fprintf(stderr, "Cipher: %s", cipher);
+		//if (write(info->csocket, cipher, BUFFER_SIZE) < 0) {
+		//	fprintf(stderr, "write to csocket error");
+		//	exit(-1);
+		//}
+		//}
 	}
 
 }

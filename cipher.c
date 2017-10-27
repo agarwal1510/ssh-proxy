@@ -51,6 +51,7 @@ void generateIV() {
                 exit(-1);
         }
         fwrite(iv, 1, sizeof(iv), iv_file);
+	//fprintf(stderr, "%d", sizeof(iv));
         fclose(iv_file);
 	
 }
@@ -104,14 +105,16 @@ int decrypt(char* keyfile, char *input, char *output) {
         unsigned char *enc_key = (char *)malloc(sizeof(char)*16);
         int bytes_encrypted = 0, bytes_read = 0;
         int inputsize = strlen(input);
+	int count;
 	
+	//fprintf(stderr, "%s", input);
 	FILE *iv_file = fopen("IV.txt", "r");
         if (iv_file == NULL) {
 		fprintf(stderr, "Error reading IV");
 		exit(-1);
 	}
-	if (fread(iv, 1, 16, iv_file) < 16) {
-		fprintf(stderr, "IV smaller");
+	if ((count = fread(iv, 1, 16, iv_file)) < 16) {
+		fprintf(stderr, "IV smaller %d", sizeof(iv));
 	}
 	fclose(iv_file);
         FILE *key_file = fopen(keyfile, "r");
