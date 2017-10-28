@@ -1,6 +1,4 @@
 #include "cipher.h"
-#include <stdio.h>
-#include <string.h>
 
 FILE *readfile;
 FILE *writefile;
@@ -50,18 +48,18 @@ void generateIV() {
                 fprintf(stderr, "Error opening IV");
                 exit(-1);
         }
-        fwrite(iv, 1, sizeof(iv), iv_file);
+        fwrite(iv, 1, AES_BLOCK_SIZE, iv_file);
 	//fprintf(stderr, "%d", sizeof(iv));
         fclose(iv_file);
 	
 }
 
-int encrypt(char* keyfile, char *input, char *output) {
+int encrypt(char* keyfile, char *input, char *output, int inputsize, char *iv) {
 	unsigned char *enc_key = (char *)malloc(sizeof(char)*16);
 	int bytes_encrypted = 0, bytes_read = 0;
-	int inputsize = strlen(input);
+	//int inputsize = strlen(input);
 
-	generateIV();
+	//generateIV();
 	FILE *key_file = fopen(keyfile, "r");
 	if (key_file == NULL){
 		fprintf(stderr, "Cannot open key file");
@@ -79,44 +77,44 @@ int encrypt(char* keyfile, char *input, char *output) {
 	}
 	init_ctr(&state, iv);
 	bytes_read = 0;
-	while(bytes_encrypted != inputsize) {
+	//while(bytes_encrypted != inputsize) {
 		
-		for (int j = bytes_encrypted; j < inputsize && j < (AES_BLOCK_SIZE+bytes_encrypted); j++) {
-			indata[bytes_read++] = input[j];
-		}
+		//for (int j = bytes_encrypted; j < inputsize && j < (AES_BLOCK_SIZE+bytes_encrypted); j++) {
+		//	indata[bytes_read++] = input[j];
+		//}
 		//printf("\nBE: %d %d", bytes_read, bytes_encrypted);
-		AES_ctr128_encrypt(indata, outdata, bytes_read, &key, state.ivec, state.ecount, &(state.num));
-		
-		for (int i = 0; i < bytes_read; i++) {
-			output[i+bytes_encrypted] = outdata[i];
-		}
-		bytes_encrypted += bytes_read;
-		if (bytes_read < AES_BLOCK_SIZE) {
+		//AES_ctr128_encrypt(indata, outdata, bytes_read, &key, state.ivec, state.ecount, &(state.num));
+		AES_ctr128_encrypt(input, output+AES_BLOCK_SIZE, inputsize, &key, state.ivec, state.ecount, &(state.num));
+		//for (int i = 0; i < bytes_read; i++) {
+		//	output[i+bytes_encrypted] = outdata[i];
+		//}
+		//bytes_encrypted += bytes_read;
+		//if (bytes_read < AES_BLOCK_SIZE) {
 			//fprintf(stdout, "Cipher text: %s", output);
-			break;
-		}
-		bytes_read = 0;
-	}
-	output[bytes_encrypted] = '\0';
+		//	break;
+		//}
+		//bytes_read = 0;
+	//}
+	//output[bytes_encrypted] = '\0';
 	//printf("\n%d %d %s", inputsize, bytes_encrypted, output);
 }
 
-int decrypt(char* keyfile, char *input, char *output) {
+int decrypt(char* keyfile, char *input, char *output, int inputsize, char* iv) {
         unsigned char *enc_key = (char *)malloc(sizeof(char)*16);
         int bytes_encrypted = 0, bytes_read = 0;
-        int inputsize = strlen(input);
+        //int inputsize = strlen(input);
 	int count;
 	
 	//fprintf(stderr, "%s", input);
-	FILE *iv_file = fopen("IV.txt", "r");
+	/*FILE *iv_file = fopen("IV.txt", "r");
         if (iv_file == NULL) {
 		fprintf(stderr, "Error reading IV");
 		exit(-1);
 	}
 	if ((count = fread(iv, 1, 16, iv_file)) < 16) {
-		fprintf(stderr, "IV smaller %d", sizeof(iv));
+		fprintf(stderr, "IV smaller %d %d", sizeof(iv), count);
 	}
-	fclose(iv_file);
+	fclose(iv_file);*/
         FILE *key_file = fopen(keyfile, "r");
         if (key_file == NULL){
                 fprintf(stderr, "Cannot open key file");
@@ -134,7 +132,7 @@ int decrypt(char* keyfile, char *input, char *output) {
         }
         init_ctr(&state, iv);
 	bytes_read = 0;
-        while(bytes_encrypted != inputsize) {
+        /*while(bytes_encrypted != inputsize) {
 
                 for (int j = bytes_encrypted; j < (AES_BLOCK_SIZE+bytes_encrypted) && j < inputsize; j++) {
                         indata[bytes_read++] = input[j];
@@ -154,6 +152,8 @@ int decrypt(char* keyfile, char *input, char *output) {
                 bytes_read = 0;
         }
 	output[bytes_encrypted] = '\0';
+	*/
+	AES_ctr128_encrypt(input+AES_BLOCK_SIZE, output, inputsize, &key, state.ivec, state.ecount, &(state.num));
 }
 /*
 int main() {

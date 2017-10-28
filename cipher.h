@@ -14,8 +14,10 @@
 #include <openssl/rand.h>
 #include <pthread.h>
 #include <sys/fcntl.h>
+#include <sys/select.h>
+#include <errno.h>
 
-#define BUFFER_SIZE 1024
+#define BUFFER_SIZE 4096
 
 struct ctr_state {
 	unsigned char ivec[AES_BLOCK_SIZE];
@@ -26,7 +28,7 @@ struct ctr_state {
 void client(char *hostname, int port, char *keyfile);
 void server(char *hostname, int dport, int lport, char *keyfile);
 char *getIV();
-int encrypt(char *keyfile, char *input, char *output);
-int decrypt(char *keyfile, char *input, char *output);
+int encrypt(char *keyfile, char *input, char *output, int inputsize, char *iv);
+int decrypt(char *keyfile, char *input, char *output, int inputsize, char *iv);
 
 #endif

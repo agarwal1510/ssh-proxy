@@ -1,13 +1,11 @@
 #include "cipher.h"
-#include <sys/select.h>
-#include <errno.h>
 
 void client(char *hostname, int port, char *keyfile) {
 
 	struct sockaddr_in serv_addr;
 	struct hostent *serverip;
 	int socketfd, count, br;
-	char plaintext[BUFFER_SIZE], cipher[BUFFER_SIZE];
+	char plaintext[BUFFER_SIZE], cipher[BUFFER_SIZE], iv[AES_BLOCK_SIZE];
 	char *buffer = (char *)malloc(sizeof(char)*BUFFER_SIZE);
 	fd_set fdset;
 	struct timeval tv;
@@ -43,7 +41,7 @@ void client(char *hostname, int port, char *keyfile) {
 		FD_ZERO(&fdset);
 		FD_SET(socketfd, &fdset);
 		FD_SET(STDIN_FILENO, &fdset);
-		tv.tv_sec = 10;
+		tv.tv_sec = 60;
 		tv.tv_usec = 0;
 		br = 0;
 		//fprintf(stdout, "Enter your message:");
@@ -63,11 +61,21 @@ void client(char *hostname, int port, char *keyfile) {
 		} else {
 			if (FD_ISSET(STDIN_FILENO, &fdset)) {
 				bzero(buffer, BUFFER_SIZE);
+				bzero(iv, AES_BLOCK_SIZE);
+				bzero(cipher, BUFFER_SIZE);
 				br = read(STDIN_FILENO, buffer, BUFFER_SIZE);
 				if (br > 0) {
 					//fprintf(stderr, "S: %d", br);
-					//encrypt(keyfile, buffer, cipher);
-					if (write(socketfd, buffer, br) < 0) {
+
+					if (!RAND_bytes(iv, AES_BLOCK_SIZE)) {
+         				     	fprintf(stderr, "IV creation error");
+               					exit(-1);
+       					 }
+					memcpy(cipher, iv, AES_BLOCK_SIZE);
+
+					encrypt(keyfile, buffer, cipher, br, iv);
+					//fprintf(stderr, "C: %d %d", sizeof(cipher), br);
+					if (write(socketfd, cipher, br+AES_BLOCK_SIZE) < 0) {
 						fprintf(stderr, "write to csocket error");
 						exit(-1);
 					}
@@ -78,9 +86,15 @@ void client(char *hostname, int port, char *keyfile) {
 
 			} else if (FD_ISSET(socketfd, &fdset)) {
 				bzero(buffer, BUFFER_SIZE);
+				bzero(iv, AES_BLOCK_SIZE);
+				bzero(plaintext, BUFFER_SIZE);
+
 				br = read(socketfd, buffer, BUFFER_SIZE);
-				//decrypt(keyfile, buffer, plaintext);
-				if (write(STDOUT_FILENO,  buffer, br) < 0) {
+				memcpy(iv, buffer, AES_BLOCK_SIZE);
+
+				decrypt(keyfile, buffer, plaintext, br-AES_BLOCK_SIZE, iv);
+				//fprintf(stderr, "P: %d %d", sizeof(plaintext), br);
+				if (write(STDOUT_FILENO,  plaintext, br-AES_BLOCK_SIZE) < 0) {
 					fprintf(stderr, "write to ssh -o error");
 					exit(-1);
 				}
