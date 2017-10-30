@@ -24,20 +24,7 @@ int init_ctr(struct ctr_state *state, const unsigned char iv[16])
     memcpy(state->ivec, iv, 8);
 }
 
-char *getIV() {
-	FILE *iv_file = fopen("IV.txt", "r");
-        if (iv_file == NULL) {
-                fprintf(stderr, "Error reading IV");
-                exit(-1);
-        }
-        if (fread(iv, 1, 16, iv_file) < 16) {
-                fprintf(stderr, "IV smaller");
-        }
-        fclose(iv_file);
-	return iv;
-}
-
-void generateIV() {
+/*void generateIV() {
 
         if (!RAND_bytes(iv, AES_BLOCK_SIZE)) {
                 fprintf(stderr, "IV creation error");
@@ -52,7 +39,7 @@ void generateIV() {
 	//fprintf(stderr, "%d", sizeof(iv));
         fclose(iv_file);
 	
-}
+} */
 
 int encrypt(char* keyfile, char *input, char *output, int inputsize, char *iv) {
 	unsigned char *enc_key = (char *)malloc(sizeof(char)*16);

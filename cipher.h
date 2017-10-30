@@ -27,7 +27,6 @@ struct ctr_state {
 
 void client(char *hostname, int port, char *keyfile);
 void server(char *hostname, int dport, int lport, char *keyfile);
-char *getIV();
 int encrypt(char *keyfile, char *input, char *output, int inputsize, char *iv);
 int decrypt(char *keyfile, char *input, char *output, int inputsize, char *iv);
 

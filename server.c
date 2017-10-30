@@ -39,12 +39,6 @@ void *thread_handler(void *thread) {
 		exit(-1);
 	}
 
-	/*FD_ZERO(&fdset);
-	  FD_SET(sshfd, &fdset);
-	  FD_SET(info->csocket, &fdset);
-	  tv.tv_sec = 10;
-	  tv.tv_usec = 0;
-	 */
 	//fcntl(STDIN_FILENO, F_SETFL, O_NONBLOCK);
 	//fcntl(STDOUT_FILENO, F_SETFL, O_NONBLOCK);
 	//int flag = fcntl(sshfd, F_GETFL);
@@ -173,7 +167,7 @@ void server(char* hostname, int dport, int lport, char *keyfile) {
 	int clen = sizeof(struct sockaddr_in);
 	while (1) {
 		csocket = accept(serverfd, (struct sockaddr *)&client, (socklen_t *)&clen);
-		printf("\nConnection accepted %d\n", csocket);
+		//printf("\nConnection accepted %d\n", csocket);
 		struct client_info *info = (struct client_info *)malloc(sizeof(struct client_info));
 		info->csocket = csocket;
 		info->keyfile = keyfile;
