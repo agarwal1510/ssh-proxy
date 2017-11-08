@@ -63,14 +63,14 @@ void client(char *hostname, int port, char *keyfile) {
 				bzero(buffer, BUFFER_SIZE);
 				bzero(iv, AES_BLOCK_SIZE);
 				bzero(cipher, BUFFER_SIZE);
-				br = read(STDIN_FILENO, buffer, BUFFER_SIZE);
+				br = read(STDIN_FILENO, buffer, 4000);
 				if (br > 0) {
-					//fprintf(stderr, "S: %d", br);
+					//					fprintf(stderr, "S: %d", br);
 
 					if (!RAND_bytes(iv, AES_BLOCK_SIZE)) {
-         				     	fprintf(stderr, "IV creation error");
-               					exit(-1);
-       					 }
+						fprintf(stderr, "IV creation error");
+						exit(-1);
+					}
 					memcpy(cipher, iv, AES_BLOCK_SIZE);
 
 					encrypt(keyfile, buffer, cipher, br, iv);
@@ -89,11 +89,11 @@ void client(char *hostname, int port, char *keyfile) {
 				bzero(iv, AES_BLOCK_SIZE);
 				bzero(plaintext, BUFFER_SIZE);
 
-				br = read(socketfd, buffer, BUFFER_SIZE);
+				br = read(socketfd, buffer, 4000);
 				memcpy(iv, buffer, AES_BLOCK_SIZE);
 
 				decrypt(keyfile, buffer, plaintext, br-AES_BLOCK_SIZE, iv);
-				//fprintf(stderr, "P: %d %d", sizeof(plaintext), br);
+				//				fprintf(stderr, "P: %d", br);
 				if (write(STDOUT_FILENO,  plaintext, br-AES_BLOCK_SIZE) < 0) {
 					fprintf(stderr, "write to ssh -o error");
 					exit(-1);
