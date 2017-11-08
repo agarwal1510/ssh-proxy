@@ -74,7 +74,7 @@ void client(char *hostname, int port, char *keyfile) {
 					memcpy(cipher, iv, AES_BLOCK_SIZE);
 
 					encrypt(keyfile, buffer, cipher, br, iv);
-					//fprintf(stderr, "C: %d %d", sizeof(cipher), br);
+//					fprintf(stderr, "C: %d ", br);
 					if (write(socketfd, cipher, br+AES_BLOCK_SIZE) < 0) {
 						fprintf(stderr, "write to csocket error");
 						exit(-1);

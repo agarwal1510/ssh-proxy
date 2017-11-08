@@ -91,7 +91,7 @@ void *thread_handler(void *thread) {
 				usleep(1000);
 				brecv = read(sshfd, buffer, BUFFER);
 				if (brecv > 0) {
-						fprintf(stderr, "R: %d", brecv);
+	//					fprintf(stderr, "R: %d", brecv);
 					if (!RAND_bytes(iv, AES_BLOCK_SIZE)) {
 						fprintf(stderr, "IV creation error");
 						exit(-1);
@@ -105,7 +105,7 @@ void *thread_handler(void *thread) {
 						fprintf(stderr, "write to csocket error");
 						exit(-1);
 					}
-					fprintf(stderr, "CW:%d ", r);
+	//				fprintf(stderr, "CW:%d ", r);
 				} else if (brecv == -1) {
 					fprintf(stderr, "E: %s", strerror(errno));
 					exit(-1);
@@ -118,7 +118,7 @@ void *thread_handler(void *thread) {
 
 				brecv = read(info->csocket, buffer, BUFFER+AES_BLOCK_SIZE);
 				if (brecv > 0) {
-						fprintf(stderr, "S: %d", brecv);
+//						fprintf(stderr, "S: %d", brecv);
 					memcpy(iv, buffer, AES_BLOCK_SIZE);
 					decrypt(info->keyfile, buffer, plaintext, brecv-AES_BLOCK_SIZE, iv);
 					//fprintf(stderr, "P: %d %d", sizeof(plaintext), brecv);
