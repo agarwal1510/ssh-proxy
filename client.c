@@ -63,7 +63,7 @@ void client(char *hostname, int port, char *keyfile) {
 				bzero(buffer, BUFFER_SIZE);
 				bzero(iv, AES_BLOCK_SIZE);
 				bzero(cipher, BUFFER_SIZE);
-				br = read(STDIN_FILENO, buffer, 4000);
+				br = read(STDIN_FILENO, buffer, BUFFER);
 				if (br > 0) {
 					//					fprintf(stderr, "S: %d", br);
 
@@ -89,7 +89,7 @@ void client(char *hostname, int port, char *keyfile) {
 				bzero(iv, AES_BLOCK_SIZE);
 				bzero(plaintext, BUFFER_SIZE);
 
-				br = read(socketfd, buffer, 4000);
+				br = read(socketfd, buffer, BUFFER+AES_BLOCK_SIZE);
 				memcpy(iv, buffer, AES_BLOCK_SIZE);
 
 				decrypt(keyfile, buffer, plaintext, br-AES_BLOCK_SIZE, iv);

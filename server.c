@@ -10,10 +10,10 @@ struct client_info {
 };
 
 void *thread_handler(void *thread) {
-	int BUFFER = 4000;
+	//int BUFFER = 4000;
 	int sshfd, count, brecv = 0;
-	char buffer[BUFFER];
-	char plaintext[BUFFER], cipher[BUFFER_SIZE], iv[AES_BLOCK_SIZE];
+	char buffer[BUFFER_SIZE];
+	char plaintext[BUFFER_SIZE], cipher[BUFFER_SIZE], iv[AES_BLOCK_SIZE];
 	struct sockaddr_in ssh_addr;
 	struct hostent *host;
 	struct client_info *info = (struct client_info *)thread;
@@ -84,14 +84,14 @@ void *thread_handler(void *thread) {
 			exit(-1);
 		} else {
 			if (FD_ISSET(sshfd, &fdset)) {
-				bzero(buffer, BUFFER);
+				bzero(buffer, BUFFER_SIZE);
 				bzero(cipher, BUFFER_SIZE);
 				bzero(iv, AES_BLOCK_SIZE);
 
 				usleep(1000);
 				brecv = read(sshfd, buffer, BUFFER);
 				if (brecv > 0) {
-					//	fprintf(stderr, "R: %d", brecv);
+						fprintf(stderr, "R: %d", brecv);
 					if (!RAND_bytes(iv, AES_BLOCK_SIZE)) {
 						fprintf(stderr, "IV creation error");
 						exit(-1);
@@ -99,11 +99,13 @@ void *thread_handler(void *thread) {
 					memcpy(cipher, iv, AES_BLOCK_SIZE);
 
 					encrypt(info->keyfile, buffer, cipher, brecv, iv);
-					//fprintf(stderr, "C: %d %d", sizeof(cipher), brecv);
-					if (write(info->csocket, cipher, brecv+AES_BLOCK_SIZE) < 0) {
+					//fprintf(stderr, "C: %d", sizeof(cipher));
+					int r;
+					if ((r = write(info->csocket, cipher, brecv+AES_BLOCK_SIZE)) < 0) {
 						fprintf(stderr, "write to csocket error");
 						exit(-1);
 					}
+					fprintf(stderr, "CW:%d ", r);
 				} else if (brecv == -1) {
 					fprintf(stderr, "E: %s", strerror(errno));
 					exit(-1);
@@ -111,12 +113,12 @@ void *thread_handler(void *thread) {
 
 			} else if (FD_ISSET(info->csocket, &fdset)) {
 				bzero(buffer, BUFFER);
-				bzero(plaintext, BUFFER);
+				bzero(plaintext, BUFFER_SIZE);
 				bzero(iv, AES_BLOCK_SIZE);
 
-				brecv = read(info->csocket, buffer, BUFFER);
+				brecv = read(info->csocket, buffer, BUFFER+AES_BLOCK_SIZE);
 				if (brecv > 0) {
-					//	fprintf(stderr, "S: %d", brecv);
+						fprintf(stderr, "S: %d", brecv);
 					memcpy(iv, buffer, AES_BLOCK_SIZE);
 					decrypt(info->keyfile, buffer, plaintext, brecv-AES_BLOCK_SIZE, iv);
 					//fprintf(stderr, "P: %d %d", sizeof(plaintext), brecv);

@@ -18,6 +18,7 @@
 #include <errno.h>
 
 #define BUFFER_SIZE 4096
+#define BUFFER 4000
 
 struct ctr_state {
 	unsigned char ivec[AES_BLOCK_SIZE];
